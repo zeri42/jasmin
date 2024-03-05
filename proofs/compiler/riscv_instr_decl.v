@@ -34,6 +34,7 @@ End E.
 Variant riscv_op : Type :=
 (* Arithmetic *)
 | ADD                            (* Add without carry *)
+| XOR
 .
 
 Scheme Equality for riscv_op.
@@ -53,7 +54,7 @@ Instance eqTC_riscv_op : eqTypeC riscv_op :=
 Canonical riscv_op_eqType := @ceqT_eqType _ eqTC_riscv_op.
 
 Definition riscv_ops : seq riscv_op :=
-  [:: ADD
+  [:: ADD; XOR
   ].
 
 Lemma riscv_op_fin_axiom : Finite.axiom riscv_ops.
@@ -71,6 +72,7 @@ Canonical riscv_op_finType := @cfinT_finType _ finTC_riscv_op.
 Definition string_of_riscv_op (mn : riscv_op) : string :=
   match mn with
   | ADD => "ADD"
+  | XOR => "XOR"
   end%string.
 
 
@@ -106,6 +108,7 @@ Definition riscv_ADD_semi (wn wm : ty_r) : exec ty_r :=
   in
   ok x.
 
+
 Definition riscv_ADD_instr : instr_desc_t :=
   let mn := ADD in
   {|
@@ -127,12 +130,42 @@ Definition riscv_ADD_instr : instr_desc_t :=
     |}.
 
 
+Definition riscv_XOR_semi (wn wm : ty_r) : exec ty_r :=
+  let x :=
+      (wxor wn  wm) % R
+  in
+  ok x.
+
+
+Definition riscv_XOR_instr : instr_desc_t :=
+  let mn := XOR in
+  {|
+      id_msb_flag := MSB_MERGE;
+      id_tin := [:: sreg; sreg ];
+      id_in := [:: E 1; E 2 ];
+      id_tout := [:: sreg];
+      id_out := [:: E 0 ];
+      id_semi := riscv_XOR_semi;
+      id_nargs := 3;
+      id_args_kinds := ak_reg_reg_reg ++ ak_reg_reg_imm;
+      id_eq_size := refl_equal;
+      id_tin_narr := refl_equal;
+      id_tout_narr := refl_equal;
+      id_check_dest := refl_equal;
+      id_str_jas := pp_s (string_of_riscv_op mn);
+      id_safe := [::];
+      id_pp_asm := pp_riscv_op mn;
+    |}.
+
+
+
 (* -------------------------------------------------------------------- *)
 (* Description of instructions. *)
 
 Definition riscv_instr_desc (mn : riscv_op) : instr_desc_t :=
   match mn with
-  | ADD => riscv_ADD_instr
+  |  ADD => riscv_ADD_instr
+  |  XOR => riscv_XOR_instr 
   end.
 
 Definition riscv_prim_string : seq (string * prim_constructor riscv_op) :=
