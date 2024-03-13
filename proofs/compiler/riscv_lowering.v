@@ -111,13 +111,35 @@ Definition lower_cassgn
     | Papp2 op a b => lower_Papp2 ws op a b
     | _ => None    
     end
-    in Some ([:: lv], Oriscv op, e).
+        in Some ([:: lv], Oriscv op, e).
 
+
+Definition lower_mulu sz (xs: lvals) tg (es: pexprs) : seq instr_r :=
+  match xs, es with
+  | [:: r1; r2], [:: x; y] => [::
+                                 Copn [:: r1] tg (Oriscv MULH) es;
+                               Copn [:: r2] tg (Oriscv MUL) es
+    ]
+    | [:: r1], [:: x; y] =>  [:: Copn [:: r1] tg (Oriscv MUL) es]
+    | _, _ => [:: Copn xs tg (sopn_mulu sz) es]
+    end.
+
+
+Definition lower_pseudo_operator
+  (xs: lvals)
+  (tg: assgn_tag)
+  (op: pseudo_operator)
+  (es: pexprs) :
+  seq instr_r :=
+  match op with
+  | Omulu U32 => lower_mulu U32 xs tg es 
+  | _ => [:: Copn xs tg (Opseudo_op op) es]
+  end. 
 
 Definition lower_copn
-  (lvs : seq lval) (op : sopn) (es : seq pexpr) : option copn_args :=
+  (lvs : seq lval) (op : sopn) (tg: assgn_tag) (es : seq pexpr) : option(seq instr_r) :=
   match op with
-  | Opseudo_op pop => None
+  | Opseudo_op pop => Some(lower_pseudo_operator lvs tg pop es)
   | _ => None
   end.
 
@@ -146,13 +168,14 @@ Fixpoint lower_i (i : instr) : cmd :=
 
  (* Copn : "assembly" instruction pattern matching, required for pseudo instructions or extra instructions *)
   | Copn lvs tag op es =>
-      let ir' :=
-        if lower_copn lvs op es is Some (lvs', op', es')
+      if (lower_copn lvs op tag es) is Some irs then map (MkI ii) irs else  map (MkI ii) [:: ir]
+  (*    let ir' :=
+        if lower_copn lvs op tag es is Some (lvs', op', es')
         then Copn lvs' tag op' es'
         else ir
       in
       [:: MkI ii ir' ]
-
+*)
   | Cif e c1 c2  =>
       let c1' := conc_map lower_i c1 in
       let c2' := conc_map lower_i c2 in

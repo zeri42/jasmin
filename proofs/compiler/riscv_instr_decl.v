@@ -35,6 +35,8 @@ Variant riscv_op : Type :=
 (* Arithmetic *)
 | ADD                            (* Add without carry *)
 | SUB                            (* Sub without carry *)
+| MUL                            (* Mul mod 2**32 *)     
+| MULH                           (* Mul but for the higher 32 bits *)     
 
 (* Logical *)
 | AND                            (* Bitwise AND *)
@@ -122,6 +124,59 @@ Definition riscv_ADD_instr : instr_desc_t :=
 Definition prim_ADD := ("ADD"%string, primM ADD). (* how to parse it in Jasmin *)
 
 
+Definition riscv_MUL_semi (wn wm : ty_r) : exec ty_r :=
+  ok (wn * wm)%R.
+
+Definition riscv_MUL_instr : instr_desc_t :=
+  {|
+      id_msb_flag := MSB_MERGE;
+      id_tin := [:: sreg; sreg ];
+      id_in := [:: E 1; E 2 ];
+      id_tout := [:: sreg];
+      id_out := [:: E 0 ];
+      id_semi := riscv_MUL_semi;
+      id_nargs := 3;
+      id_args_kinds := ak_reg_reg_reg ++ ak_reg_reg_imm;
+      id_eq_size := refl_equal;
+      id_tin_narr := refl_equal;
+      id_tout_narr := refl_equal;
+      id_check_dest := refl_equal;
+      id_str_jas := pp_s "MUL";
+      id_safe := [::];
+      id_pp_asm := pp_name "mul";
+    |}.
+
+Definition prim_MUL := ("MUL"%string, primM MUL).
+
+Definition riscv_MULH_semi (wn wm : ty_r) : exec ty_r :=
+  ok (wshr (wn * wm) 32) % R.
+
+Definition riscv_MULH_instr : instr_desc_t :=
+  {|
+      id_msb_flag := MSB_MERGE;
+      id_tin := [:: sreg; sreg ];
+      id_in := [:: E 1; E 2 ];
+      id_tout := [:: sreg];
+      id_out := [:: E 0 ];
+      id_semi := riscv_MULH_semi;
+      id_nargs := 3;
+      id_args_kinds := ak_reg_reg_reg ++ ak_reg_reg_imm;
+      id_eq_size := refl_equal;
+      id_tin_narr := refl_equal;
+      id_tout_narr := refl_equal;
+      id_check_dest := refl_equal;
+      id_str_jas := pp_s "MULH";
+      id_safe := [::];
+      id_pp_asm := pp_name "mulh";
+    |}.
+
+Definition prim_MULH := ("MULH"%string, primM MULH).
+
+
+
+
+
+
 Definition riscv_SUB_semi (wn wm : ty_r) : exec ty_r :=
   ok (wn - wm)%R.
 
@@ -145,7 +200,6 @@ Definition riscv_SUB_instr : instr_desc_t :=
     |}.
 
 Definition prim_SUB := ("SUB"%string, primM SUB).
-
 
 Definition riscv_AND_semi (wn wm : ty_r) : exec ty_r :=
   ok (wand wn wm).
@@ -370,6 +424,8 @@ Definition riscv_instr_desc (mn : riscv_op) : instr_desc_t :=
   match mn with
   | ADD => riscv_ADD_instr
   | SUB => riscv_SUB_instr
+  | MUL => riscv_MUL_instr
+  | MULH => riscv_MULH_instr
   | AND => riscv_AND_instr
   | OR => riscv_OR_instr
   | XOR => riscv_XOR_instr
@@ -383,6 +439,8 @@ Definition riscv_instr_desc (mn : riscv_op) : instr_desc_t :=
 Definition riscv_prim_string : seq (string * prim_constructor riscv_op) := [::
   prim_ADD;
   prim_SUB;
+  prim_MUL;
+  prim_MULH;
   prim_AND;
   prim_OR;
   prim_XOR;
