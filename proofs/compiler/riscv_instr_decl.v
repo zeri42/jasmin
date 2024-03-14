@@ -40,6 +40,8 @@ Variant riscv_op : Type :=
 | AND                            (* Bitwise AND *)
 | OR                             (* Bitwise OR *)
 | XOR                            (* Bitwise XOR *)
+| SLL                            (* Logical Left Shift *)
+| SRL                            (* Logical Right shift *)
 
 (* Pseudo instruction : Other data processing instructions *)
 | LA                             (* Load address *)
@@ -271,6 +273,54 @@ Definition riscv_XOR_instr : instr_desc_t :=
 
 Definition prim_XOR := ("XOR"%string, primM XOR).
 
+Definition riscv_SLL_semi (wn: ty_r) (wsham: word U8): exec ty_r :=
+  ok (wshl wn (wunsigned wsham))
+
+Definition riscv_SLL_instr : instr_desc_t :=
+  {|
+      id_msb_flag := MSB_MERGE;
+      id_tin := [:: sreg; sreg ];
+      id_in := [:: E 1; E 2 ];
+      id_tout := [:: sreg];
+      id_out := [:: E 0 ];
+      id_semi := riscv_SLL_semi;
+      id_nargs := 3;
+      id_args_kinds := ak_reg_reg_reg ++ ak_reg_reg_imm;
+      id_eq_size := refl_equal;
+      id_tin_narr := refl_equal;
+      id_tout_narr := refl_equal;
+      id_check_dest := refl_equal;
+      id_str_jas := pp_s "SLL";
+      id_safe := [::];
+      id_pp_asm := pp_name "sll";
+    |}.
+
+Definition prim_SLL := ("SLL"%string, primM SLL).
+
+
+Definition riscv_SRL_semi (wn wm : ty_r): exec ty_r :=
+  ok (wshr wn (wunsigned wm)).
+
+Definition riscv_SRL_instr : instr_desc_t :=
+  {|
+      id_msb_flag := MSB_MERGE;
+      id_tin := [:: sreg; sreg ];
+      id_in := [:: E 1; E 2 ];
+      id_tout := [:: sreg];
+      id_out := [:: E 0 ];
+      id_semi := riscv_SRL_semi;
+      id_nargs := 3;
+      id_args_kinds := ak_reg_reg_reg ++ ak_reg_reg_imm;
+      id_eq_size := refl_equal;
+      id_tin_narr := refl_equal;
+      id_tout_narr := refl_equal;
+      id_check_dest := refl_equal;
+      id_str_jas := pp_s "SRL";
+      id_safe := [::];
+      id_pp_asm := pp_name "srl";
+    |}.
+
+Definition prim_SRL := ("SRL"%string, primM SRL).
 
 Definition riscv_LI_semi (wn : ty_r) : exec ty_r :=
   ok wn.
@@ -377,6 +427,8 @@ Definition riscv_instr_desc (mn : riscv_op) : instr_desc_t :=
   | AND => riscv_AND_instr
   | OR => riscv_OR_instr
   | XOR => riscv_XOR_instr
+  | SLL => riscv_SLL_instr
+  | SRL => riscv_SRL_instr
   | LA => riscv_LA_instr
   | LI => riscv_LI_instr
   | MV => riscv_MV_instr
@@ -390,6 +442,8 @@ Definition riscv_prim_string : seq (string * prim_constructor riscv_op) := [::
   prim_AND;
   prim_OR;
   prim_XOR;
+  prim_SLL;
+  prim_SRL;
   prim_LA;
   prim_LI;
   prim_MV;
